@@ -143,10 +143,13 @@ class TriggerRuleDep(BaseTIDep):
             elif trigger_rule == TR.NONE_FAILED:
                 if upstream_failed or failed:
                     ti.set_state(State.UPSTREAM_FAILED, session)
-                elif skipped == upstream:
-                    ti.set_state(State.SKIPPED, session)
             elif trigger_rule == TR.NONE_SKIPPED:
                 if skipped:
+                    ti.set_state(State.SKIPPED, session)
+            elif trigger_rule == TR.NONE_FAILED_AND_ONE_SUCCESS:
+                if upstream_failed or failed:
+                    ti.set_state(State.UPSTREAM_FAILED, session)
+                elif skipped == upstream:
                     ti.set_state(State.SKIPPED, session)
 
         if trigger_rule == TR.ONE_SUCCESS:
@@ -206,6 +209,15 @@ class TriggerRuleDep(BaseTIDep):
                     "tasks to not have been skipped, but found {1} task(s) skipped. "
                     "upstream_tasks_state={2}, upstream_task_ids={3}"
                     .format(trigger_rule, skipped, upstream_tasks_state,
+                            task.upstream_task_ids))
+        elif trigger_rule == TR.NONE_FAILED_AND_ONE_SUCCESS:
+            num_failures = upstream - successes - skipped
+            if num_failures > 0 or not successes:
+                yield self._failing_status(
+                    reason="Task's trigger rule '{0}' requires  at least one upstream "
+                    "success, but found {1} non-success(es). "
+                    "upstream_tasks_state={2}, upstream_task_ids={3}"
+                    .format(trigger_rule, num_failures, upstream_tasks_state,
                             task.upstream_task_ids))
         else:
             yield self._failing_status(
